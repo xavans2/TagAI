@@ -1,0 +1,845 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>AI Tag Game - Fully Loaded Penalties</title>
+    <style>
+        body {
+            background-color: #121212;
+            color: #ffffff;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        h1 { margin: 0 0 10px 0; font-size: 24px; }
+
+        #header-ui {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            background-color: #1e1e1e;
+            padding: 10px 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .stat-badge {
+            font-size: 14px;
+            font-weight: bold;
+            padding: 6px 12px;
+            border-radius: 5px;
+            background-color: #2a2a2a;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        #gen-badge { color: #9b59b6; }
+        #timer-badge { color: #f1c40f; }
+        #best-score-badge { color: #2ecc71; }
+        #cloud-badge { color: #3498db; }
+
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            font-weight: bold;
+        }
+
+        .speed-control { color: #e67e22; }
+        .sim-control { color: #1abc9c; }
+
+        .control-group input[type="range"] {
+            cursor: pointer;
+            accent-color: #e67e22;
+        }
+
+        .control-group input[type="number"] {
+            width: 60px;
+            padding: 4px 8px;
+            border-radius: 4px;
+            border: 1px solid #444;
+            background-color: #2a2a2a;
+            color: #fff;
+            font-weight: bold;
+            font-size: 14px;
+            text-align: center;
+        }
+
+        button {
+            padding: 8px 16px;
+            font-size: 14px;
+            font-weight: bold;
+            background-color: #e74c3c;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        button:hover { background-color: #c0392b; }
+
+        #grid-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            max-width: 960px;
+        }
+
+        .sim-box {
+            background-color: #1e1e1e;
+            border-radius: 8px;
+            padding: 8px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .sim-title {
+            font-size: 13px;
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #aaa;
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            padding: 0 5px;
+            box-sizing: border-box;
+        }
+
+        canvas {
+            background-color: #0b0b0b;
+            border: 2px solid #333;
+            border-radius: 4px;
+        }
+
+        .sim-scores {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            font-size: 12px;
+            margin-top: 5px;
+            font-weight: bold;
+        }
+
+        .p1-color { color: #e74c3c; }
+        .p2-color { color: #3498db; }
+    </style>
+</head>
+<body>
+
+    <h1>AI Tag - Dynamic Sims (All Penalties Active)</h1>
+
+    <div id="header-ui">
+        <div id="gen-badge" class="stat-badge">Generation: 1</div>
+        <div id="timer-badge" class="stat-badge">Time: 20s</div>
+        <div id="best-score-badge" class="stat-badge">Best Fitness (Prev Gen): -</div>
+        <div id="cloud-badge" class="stat-badge">Cloud: Connecting...</div>
+        
+        <div class="control-group sim-control">
+            <label for="simCountInput">Simulations:</label>
+            <input type="number" id="simCountInput" min="4" max="128" value="8" step="1">
+        </div>
+
+        <div class="control-group speed-control">
+            <label for="speedRange">Speed: <span id="speedValue">1</span>x</label>
+            <input type="range" id="speedRange" min="1" max="10" value="1" step="1">
+        </div>
+
+        <button onclick="forceEvolution()">Evolve Now</button>
+    </div>
+
+    <div id="grid-container">
+        <div class="sim-box">
+            <div class="sim-title"><span id="title-slot1">Sim #</span> <span id="rank-slot1">Top #1</span></div>
+            <canvas id="canvas1" width="440" height="300"></canvas>
+            <div class="sim-scores">
+                <span class="p1-color" id="score-p1-slot1">Red: 0</span>
+                <span class="p2-color" id="score-p2-slot1">Blue: 0</span>
+            </div>
+        </div>
+
+        <div class="sim-box">
+            <div class="sim-title"><span id="title-slot2">Sim #</span> <span id="rank-slot2">Top #2</span></div>
+            <canvas id="canvas2" width="440" height="300"></canvas>
+            <div class="sim-scores">
+                <span class="p1-color" id="score-p1-slot2">Red: 0</span>
+                <span class="p2-color" id="score-p2-slot2">Blue: 0</span>
+            </div>
+        </div>
+
+        <div class="sim-box">
+            <div class="sim-title"><span id="title-slot3">Sim #</span> <span id="rank-slot3">Top #3</span></div>
+            <canvas id="canvas3" width="440" height="300"></canvas>
+            <div class="sim-scores">
+                <span class="p1-color" id="score-p1-slot3">Red: 0</span>
+                <span class="p2-color" id="score-p2-slot3">Blue: 0</span>
+            </div>
+        </div>
+
+        <div class="sim-box">
+            <div class="sim-title"><span id="title-slot4">Sim #</span> <span id="rank-slot4">Top #4</span></div>
+            <canvas id="canvas4" width="440" height="300"></canvas>
+            <div class="sim-scores">
+                <span class="p1-color" id="score-p1-slot4">Red: 0</span>
+                <span class="p2-color" id="score-p2-slot4">Blue: 0</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Supabase client CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <script>
+        const GAME_DURATION = 20; 
+        let totalSims = 8;        
+
+        let timeLeft = GAME_DURATION;
+        let lastTime = performance.now();
+        let generation = 1;
+        let lastBestScore = 0;
+        let simulationSpeed = 1;
+
+        let previousGenBestPath = [];
+
+        const speedRange = document.getElementById('speedRange');
+        const speedValue = document.getElementById('speedValue');
+        speedRange.addEventListener('input', (e) => {
+            simulationSpeed = parseInt(e.target.value);
+            speedValue.innerText = simulationSpeed;
+        });
+
+        const simCountInput = document.getElementById('simCountInput');
+        simCountInput.addEventListener('change', (e) => {
+            let val = parseInt(e.target.value);
+            if (isNaN(val) || val < 4) val = 4;
+            e.target.value = val;
+            totalSims = val;
+            reinitSimulations();
+        });
+
+        const SUPABASE_URL = "https://fcmunabtsrieaalxsijs.supabase.co";
+        const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_eeX5kqOYZ1D4ppZkHjlGAA_rmZaAb92";
+
+        const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+
+        let cloudStatus = "Cloud: Connecting...";
+        let cloudSaveBusy = false;
+
+        const obstacles = [
+            { x: 80, y: 70, w: 70, h: 70 },
+            { x: 290, y: 70, w: 70, h: 70 },
+            { x: 185, y: 180, w: 70, h: 60 }
+        ];
+
+        function getRandomFreePosition(width = 440, height = 300, radius = 10) {
+            let valid = false;
+            let rx, ry;
+            let attempts = 0;
+
+            while (!valid && attempts < 100) {
+                attempts++;
+                rx = Math.floor(Math.random() * (width - radius * 2)) + radius;
+                ry = Math.floor(Math.random() * (height - radius * 2)) + radius;
+
+                valid = true;
+                for (let obs of obstacles) {
+                    if (
+                        rx + radius > obs.x &&
+                        rx - radius < obs.x + obs.w &&
+                        ry + radius > obs.y &&
+                        ry - radius < obs.y + obs.h
+                    ) {
+                        valid = false;
+                        break;
+                    }
+                }
+            }
+            return { x: rx, y: ry };
+        }
+
+        // ==========================================
+        // NEURAL NETWORK
+        // ==========================================
+        class NeuralNetwork {
+            constructor(inputNodes, hiddenNodes, outputNodes, weights = null) {
+                this.inputNodes = inputNodes;
+                this.hiddenNodes = hiddenNodes;
+                this.outputNodes = outputNodes;
+
+                if (weights) {
+                    this.wIH = JSON.parse(JSON.stringify(weights.wIH));
+                    this.wHO = JSON.parse(JSON.stringify(weights.wHO));
+                } else {
+                    this.wIH = this.randomMatrix(hiddenNodes, inputNodes);
+                    this.wHO = this.randomMatrix(outputNodes, hiddenNodes);
+                }
+            }
+
+            randomMatrix(rows, cols) {
+                let m = [];
+                for (let i = 0; i < rows; i++) {
+                    m[i] = [];
+                    for (let j = 0; j < cols; j++) {
+                        m[i][j] = Math.random() * 2 - 1;
+                    }
+                }
+                return m;
+            }
+
+            sigmoid(x) { return 1 / (1 + Math.exp(-x)); }
+
+            predict(inputs) {
+                let hidden = [];
+                for (let i = 0; i < this.hiddenNodes; i++) {
+                    let sum = 0;
+                    for (let j = 0; j < this.inputNodes; j++) {
+                        sum += inputs[j] * this.wIH[i][j];
+                    }
+                    hidden[i] = this.sigmoid(sum);
+                }
+
+                let outputs = [];
+                for (let i = 0; i < this.outputNodes; i++) {
+                    let sum = 0;
+                    for (let j = 0; j < this.hiddenNodes; j++) {
+                        sum += hidden[j] * this.wHO[i][j];
+                    }
+                    outputs[i] = this.sigmoid(sum);
+                }
+                return outputs;
+            }
+
+            copy() {
+                return new NeuralNetwork(this.inputNodes, this.hiddenNodes, this.outputNodes, this);
+            }
+
+            mutate(rate = 0.15) {
+                const mutateVal = (val) => Math.random() < rate ? val + (Math.random() * 0.4 - 0.2) : val;
+                this.wIH = this.wIH.map(row => row.map(mutateVal));
+                this.wHO = this.wHO.map(row => row.map(mutateVal));
+            }
+        }
+
+        // ==========================================
+        // AGENT CLASS
+        // ==========================================
+        class Agent {
+            constructor(x, y, color, isIt, brain = null) {
+                this.x = x;
+                this.y = y;
+                this.radius = 10;
+                this.color = color;
+                this.isIt = isIt;
+                this.speed = 2.5;
+                this.score = 0;
+                this.brain = brain ? brain : new NeuralNetwork(8, 12, 4);
+                this.rays = [];
+                this.previousDistToOpponent = null;
+                this.myPath = [];
+                this.pathFrameCounter = 0;
+            }
+
+            reset(x, y, isIt) {
+                this.x = x;
+                this.y = y;
+                this.isIt = isIt;
+                this.score = 0;
+                this.previousDistToOpponent = null;
+                this.myPath = [];
+                this.pathFrameCounter = 0;
+            }
+
+            teleportTo(newPos) {
+                this.x = newPos.x;
+                this.y = newPos.y;
+                this.previousDistToOpponent = null;
+            }
+
+            update(opponent, width, height) {
+                let oldX = this.x;
+                let oldY = this.y;
+
+                let currentDist = Math.hypot(opponent.x - this.x, opponent.y - this.y);
+
+                if (this.previousDistToOpponent === null) {
+                    this.previousDistToOpponent = currentDist;
+                }
+
+                this.pathFrameCounter++;
+                if (this.pathFrameCounter % 10 === 0) {
+                    this.myPath.push({ x: Math.round(this.x), y: Math.round(this.y) });
+                }
+
+                let inputs = [
+                    this.x / width,
+                    this.y / height,
+                    (opponent.x - this.x) / width,
+                    (opponent.y - this.y) / height,
+                    this.isIt ? 1 : 0,
+                    this.checkCollision(this.x, this.y - 4) ? 1 : 0,
+                    this.checkCollision(this.x, this.y + 4) ? 1 : 0,
+                    this.checkCollision(this.x - 4, this.y) ? 1 : 0
+                ];
+
+                let [up, down, left, right] = this.brain.predict(inputs);
+
+                let dx = 0;
+                let dy = 0;
+
+                if (up > 0.5) dy -= this.speed;
+                if (down > 0.5) dy += this.speed;
+                if (left > 0.5) dx -= this.speed;
+                if (right > 0.5) dx += this.speed;
+
+                let bumpedObstacle = false;
+
+                if (!this.checkCollision(this.x + dx, this.y)) {
+                    this.x += dx;
+                } else if (dx !== 0) {
+                    bumpedObstacle = true;
+                }
+
+                if (!this.checkCollision(this.x, this.y + dy)) {
+                    this.y += dy;
+                } else if (dy !== 0) {
+                    bumpedObstacle = true;
+                }
+
+                this.x = Math.max(this.radius, Math.min(width - this.radius, this.x));
+                this.y = Math.max(this.radius, Math.min(height - this.radius, this.y));
+
+                let movedDistance = Math.hypot(this.x - oldX, this.y - oldY);
+                let isStandingStill = movedDistance < 0.1;
+
+                // ------------------------------------------
+                // FITNESS & PENALTY SYSTEM
+                // ------------------------------------------
+
+                // 1. Obstacle collision penalty
+                if (bumpedObstacle) {
+                    this.score -= 0.1;
+                }
+
+                // 2. Corner Trap Penalty (Schuilen in hoeken)
+                let nearLeftOrRight = (this.x < 30 || this.x > width - 30);
+                let nearTopOrBottom = (this.y < 30 || this.y > height - 30);
+                if (nearLeftOrRight && nearTopOrBottom) {
+                    this.score -= 0.1;
+                }
+
+                // 3. Wall Hugging Penalty (Plakken aan buitenmuren)
+                if (this.x < 25 || this.x > width - 25 || this.y < 25 || this.y > height - 25) {
+                    this.score -= 0.03;
+                }
+
+                // 4. Looping / Zigzag Penalty (Nutteloos ronddraaien)
+                if (Math.abs(dx) > 0 && Math.abs(dy) > 0) {
+                    this.score -= 0.02;
+                }
+
+                if (isStandingStill) {
+                    this.score -= 2 / 60; // Stagnation penalty
+                } else if (!this.isIt) {
+                    this.score += 3 / 60; // Survival bonus for runner
+                    let deltaDist = this.previousDistToOpponent - currentDist;
+                    if (deltaDist > 0) {
+                        this.score -= deltaDist * 0.1;
+                    }
+                } else {
+                    let deltaDist = this.previousDistToOpponent - currentDist;
+                    this.score += deltaDist * 0.1;
+
+                    // 5. Passive IT Penalty (Komt te traag dichterbij)
+                    if (deltaDist <= 0) {
+                        this.score -= 0.05;
+                    }
+                }
+
+                // Path penalty (Avoid previous gen path)
+                if (previousGenBestPath && previousGenBestPath.length > 0) {
+                    for (let pt of previousGenBestPath) {
+                        let distToOldPath = Math.hypot(this.x - pt.x, this.y - pt.y);
+                        if (distToOldPath < 12) {
+                            this.score -= 0.05;
+                            break;
+                        }
+                    }
+                }
+
+                this.previousDistToOpponent = currentDist;
+                this.castRays(opponent, width, height);
+            }
+
+            checkCollision(newX, newY) {
+                for (let obs of obstacles) {
+                    if (newX + this.radius > obs.x &&
+                        newX - this.radius < obs.x + obs.w &&
+                        newY + this.radius > obs.y &&
+                        newY - this.radius < obs.y + obs.h) {
+                        return true;
+                    }
+                }
+                return false;
+            }
+
+            castRays(opponent, width, height) {
+                this.rays = [];
+                for (let angle = 0; angle < 360; angle += 1) {
+                    let rad = (angle * Math.PI) / 180;
+                    let rayDx = Math.cos(rad);
+                    let rayDy = Math.sin(rad);
+
+                    let rayLength = 0;
+                    let maxDistance = 240;
+                    let hitOpponent = false;
+
+                    while (rayLength < maxDistance) {
+                        rayLength += 5;
+                        let rx = this.x + rayDx * rayLength;
+                        let ry = this.y + rayDy * rayLength;
+
+                        if (rx <= 0 || rx >= width || ry <= 0 || ry >= height) break;
+
+                        let hitObstacle = false;
+                        for (let obs of obstacles) {
+                            if (rx >= obs.x && rx <= obs.x + obs.w && ry >= obs.y && ry <= obs.y + obs.h) {
+                                hitObstacle = true;
+                                break;
+                            }
+                        }
+                        if (hitObstacle) break;
+
+                        let distToOpponent = Math.hypot(rx - opponent.x, ry - opponent.y);
+                        if (distToOpponent < opponent.radius) {
+                            hitOpponent = true;
+                            break;
+                        }
+                    }
+
+                    this.rays.push({ length: rayLength, hitOpponent, angle: rad });
+                }
+            }
+
+            draw(ctx) {
+                for (let ray of this.rays) {
+                    ctx.beginPath();
+                    ctx.moveTo(this.x, this.y);
+                    let rx = this.x + Math.cos(ray.angle) * ray.length;
+                    let ry = this.y + Math.sin(ray.angle) * ray.length;
+                    ctx.lineTo(rx, ry);
+                    
+                    if (ray.hitOpponent) {
+                        ctx.strokeStyle = 'rgba(255, 255, 0, 0.4)';
+                        ctx.lineWidth = 1.2;
+                    } else {
+                        ctx.strokeStyle = 'rgba(255, 255, 255, 0.02)';
+                        ctx.lineWidth = 0.5;
+                    }
+                    ctx.stroke();
+                }
+
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fillStyle = this.color;
+                ctx.fill();
+                ctx.lineWidth = 2;
+                ctx.strokeStyle = this.isIt ? '#ffff00' : '#ffffff';
+                ctx.stroke();
+
+                if (this.isIt) {
+                    ctx.fillStyle = '#ffff00';
+                    ctx.font = 'bold 10px sans-serif';
+                    ctx.fillText("IT", this.x - 4, this.y - 14);
+                }
+            }
+        }
+
+        class Simulation {
+            constructor(id) {
+                this.id = id;
+                this.width = 440;
+                this.height = 300;
+                this.p1 = new Agent(50, 50, '#e74c3c', true);
+                this.p2 = new Agent(390, 250, '#3498db', false);
+            }
+
+            getCombinedScore() {
+                return this.p1.score + this.p2.score;
+            }
+
+            update() {
+                this.p1.update(this.p2, this.width, this.height);
+                this.p2.update(this.p1, this.width, this.height);
+                this.checkTag();
+            }
+
+            checkTag() {
+                let dist = Math.hypot(this.p1.x - this.p2.x, this.p1.y - this.p2.y);
+                if (dist < this.p1.radius + this.p2.radius) {
+                    this.p1.isIt = !this.p1.isIt;
+                    this.p2.isIt = !this.p2.isIt;
+
+                    if (this.p1.isIt) {
+                        this.p2.score += 5;
+                        this.p1.score -= 2;
+                    } else {
+                        this.p1.score += 5;
+                        this.p2.score -= 2;
+                    }
+
+                    let pos1 = getRandomFreePosition(this.width, this.height, this.p1.radius);
+                    let pos2 = getRandomFreePosition(this.width, this.height, this.p2.radius);
+
+                    this.p1.teleportTo(pos1);
+                    this.p2.teleportTo(pos2);
+                }
+            }
+
+            drawTo(ctx) {
+                ctx.clearRect(0, 0, this.width, this.height);
+                ctx.fillStyle = '#333';
+                ctx.strokeStyle = '#555';
+                ctx.lineWidth = 2;
+
+                for (let obs of obstacles) {
+                    ctx.fillRect(obs.x, obs.y, obs.w, obs.h);
+                    ctx.strokeRect(obs.x, obs.y, obs.w, obs.h);
+                }
+
+                this.p1.draw(ctx);
+                this.p2.draw(ctx);
+            }
+        }
+
+        let allSims = [];
+
+        function reinitSimulations() {
+            allSims = [];
+            for (let i = 0; i < totalSims; i++) {
+                allSims.push(new Simulation(i + 1));
+            }
+            applyInitialItRoles();
+            timeLeft = GAME_DURATION;
+        }
+
+        const displaySlots = [
+            document.getElementById('canvas1').getContext('2d'),
+            document.getElementById('canvas2').getContext('2d'),
+            document.getElementById('canvas3').getContext('2d'),
+            document.getElementById('canvas4').getContext('2d')
+        ];
+
+        function applyInitialItRoles() {
+            let redIsIt = (generation % 2 !== 0);
+            allSims.forEach(sim => {
+                let pos1 = getRandomFreePosition(sim.width, sim.height, sim.p1.radius);
+                let pos2 = getRandomFreePosition(sim.width, sim.height, sim.p2.radius);
+
+                sim.p1.reset(pos1.x, pos1.y, redIsIt);
+                sim.p2.reset(pos2.x, pos2.y, !redIsIt);
+            });
+        }
+
+        // ==========================================
+        // SUPABASE SYNC & REALTIME
+        // ==========================================
+        async function saveGenerationToCloud() {
+            if (cloudSaveBusy) return;
+            cloudSaveBusy = true;
+            cloudStatus = "Cloud: Saving...";
+
+            try {
+                const networks = allSims.flatMap(sim => [
+                    { simulation: sim.id, player: "red", weights: sim.p1.brain },
+                    { simulation: sim.id, player: "blue", weights: sim.p2.brain }
+                ]);
+
+                const { error } = await supabaseClient
+                    .from("ai_tag_generations")
+                    .insert({
+                        generation: generation,
+                        best_score: lastBestScore,
+                        networks: networks
+                    });
+
+                if (error) throw error;
+                cloudStatus = "Cloud: Gen " + generation + " shared";
+
+            } catch (error) {
+                console.error("Supabase save error:", error);
+                cloudStatus = "Cloud Error: " + (error.message || "Save failed");
+            } finally {
+                cloudSaveBusy = false;
+            }
+        }
+
+        function applyNetworkWeights(netArray, genNum, bestScore) {
+            let requiredSims = Math.floor(netArray.length / 2);
+            if (requiredSims > 0 && requiredSims !== totalSims) {
+                totalSims = requiredSims;
+                simCountInput.value = totalSims;
+                allSims = [];
+                for (let i = 0; i < totalSims; i++) {
+                    allSims.push(new Simulation(i + 1));
+                }
+            }
+
+            for (const sim of allSims) {
+                const red = netArray.find(n => n.simulation === sim.id && n.player === "red");
+                const blue = netArray.find(n => n.simulation === sim.id && n.player === "blue");
+
+                if (red?.weights && blue?.weights) {
+                    sim.p1.brain = new NeuralNetwork(8, 12, 4, red.weights);
+                    sim.p2.brain = new NeuralNetwork(8, 12, 4, blue.weights);
+                }
+            }
+
+            generation = genNum + 1;
+            lastBestScore = bestScore;
+            applyInitialItRoles();
+            timeLeft = GAME_DURATION;
+        }
+
+        async function loadLatestGenerationFromCloud() {
+            try {
+                const { data, error } = await supabaseClient
+                    .from("ai_tag_generations")
+                    .select("generation, best_score, networks")
+                    .order("id", { ascending: false })
+                    .limit(1)
+                    .maybeSingle();
+
+                if (error) throw error;
+
+                if (data && Array.isArray(data.networks) && data.networks.length >= 8) {
+                    applyNetworkWeights(data.networks, data.generation, data.best_score || 0);
+                    cloudStatus = "Cloud: Synced (Gen " + data.generation + ")";
+                } else {
+                    cloudStatus = "Cloud: No previous data found";
+                    reinitSimulations();
+                }
+
+            } catch (error) {
+                console.error("Supabase load error:", error);
+                cloudStatus = "Cloud: Sync failed";
+                reinitSimulations();
+            }
+        }
+
+        function setupRealtimeSync() {
+            supabaseClient
+                .channel('public:ai_tag_generations')
+                .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'ai_tag_generations' }, payload => {
+                    const newRecord = payload.new;
+                    if (newRecord.generation >= generation) {
+                        applyNetworkWeights(newRecord.networks, newRecord.generation, newRecord.best_score);
+                        cloudStatus = "Cloud: Live update to Gen " + newRecord.generation;
+                    }
+                })
+                .subscribe();
+        }
+
+        // ==========================================
+        // EVOLUTION LOGIC
+        // ==========================================
+        function evolve() {
+            let allAgents = [];
+            allSims.forEach(sim => {
+                allAgents.push(sim.p1);
+                allAgents.push(sim.p2);
+            });
+
+            allAgents.sort((a, b) => b.score - a.score);
+            lastBestScore = Math.round(allAgents[0].score);
+
+            previousGenBestPath = [...allAgents[0].myPath];
+
+            let eliteCount = Math.min(8, allAgents.length);
+            let topBrains = allAgents.slice(0, eliteCount).map(a => a.brain);
+            let nextGenBrains = [];
+
+            for (let i = 0; i < totalSims * 2; i++) {
+                let parentBrain = topBrains[i % topBrains.length];
+                let childBrain = parentBrain.copy();
+                if (i >= eliteCount) childBrain.mutate(0.15);
+                nextGenBrains.push(childBrain);
+            }
+
+            nextGenBrains.sort(() => Math.random() - 0.5);
+
+            let brainIdx = 0;
+            allSims.forEach(sim => {
+                sim.p1.brain = nextGenBrains[brainIdx++];
+                sim.p2.brain = nextGenBrains[brainIdx++];
+            });
+
+            generation++;
+            applyInitialItRoles();
+            saveGenerationToCloud();
+            timeLeft = GAME_DURATION;
+        }
+
+        function forceEvolution() {
+            evolve();
+        }
+
+        // ==========================================
+        // MAIN GAME LOOP
+        // ==========================================
+        function gameLoop(timestamp) {
+            let dt = (timestamp - lastTime) / 1000;
+            lastTime = timestamp;
+
+            if (dt < 0.1) {
+                for (let s = 0; s < simulationSpeed; s++) {
+                    timeLeft -= dt;
+                    if (timeLeft <= 0) {
+                        evolve();
+                        break;
+                    }
+
+                    allSims.forEach(sim => sim.update());
+                }
+
+                let sortedSims = [...allSims].sort((a, b) => b.getCombinedScore() - a.getCombinedScore());
+                let top4Sims = sortedSims.slice(0, 4);
+
+                top4Sims.forEach((sim, slotIdx) => {
+                    let ctx = displaySlots[slotIdx];
+                    sim.drawTo(ctx);
+
+                    let slotNum = slotIdx + 1;
+                    document.getElementById(`title-slot${slotNum}`).innerText = `Sim #${sim.id}`;
+                    document.getElementById(`score-p1-slot${slotNum}`).innerText = `Red (${sim.p1.isIt ? 'IT' : 'Run'}): ${Math.round(sim.p1.score)}`;
+                    document.getElementById(`score-p2-slot${slotNum}`).innerText = `Blue (${sim.p2.isIt ? 'IT' : 'Run'}): ${Math.round(sim.p2.score)}`;
+                });
+            }
+
+            document.getElementById('timer-badge').innerText = `Time: ${Math.ceil(timeLeft)}s`;
+            document.getElementById('gen-badge').innerText = `Generation: ${generation}`;
+            document.getElementById('best-score-badge').innerText = `Best Fitness (Prev Gen): ${lastBestScore}`;
+            document.getElementById('cloud-badge').innerText = cloudStatus;
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        reinitSimulations();
+
+        loadLatestGenerationFromCloud().then(() => {
+            setupRealtimeSync();
+            requestAnimationFrame(gameLoop);
+        });
+    </script>
+</body>
+</html>
